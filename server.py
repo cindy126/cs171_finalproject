@@ -39,52 +39,30 @@ def exit():
     server_socket4.close()
     os._exit(0)
     
-# def handle_requests(connection,address):
-# 	while True:
-# 		message = connection.recv(1024)
-# 		# exit
-# 		if (message == b''):
-# 			exit()
-# 			return
-# 		m = message.decode()
-# 		m = message.split()
-# 		command = m[0]
-# 		client_clock = int(m[1])
-# 		pid = int(m[2])
-
-# 		if (command == b'request'):
-# 			q.put((client_clock,pid))
-# 		if (command == b'release'):
-# 			q.get()
-
-# 		if (command == b'request' or command == b'release'):
-# 			lock.acquire()
-# 			global clock
-# 			clock = max(client_clock,clock) + 1
-# 			lock.release()
-
-# 			if (command == b'request'):
-# 				lock.acquire()
-# 				clock = clock + 1
-# 				lock.release()
-# 				message = "reply " + str(clock)
-
-# 				time.sleep(2)
-# 				connection.send(message.encode())
+def handle_requests(connection,address):
+    while True:
+        msg = connection.recv(1024)
+        if (msg == b''):
+            exit()
+            return
+        else:
+            print("message received: ", msg.decode())
 
 
 def listen_to_client(listen_socket):
-	listen_socket.bind((socket.gethostname(), PORTS[process_id]))
-	listen_socket.listen()
-	print("listening...")
+    listen_socket.bind((socket.gethostname(), PORTS[process_id]))
+    listen_socket.listen()
+    print("listening...")
 
-	while True:
-		try:
-			connection, address = listen_socket.accept()
-			print("connected to " + str(address))
-			threading.Thread(target=handle_requests, args=(connection,address)).start()
-		except KeyboardInterrupt:
-			exit()
+    while True:
+        try:
+            connection, address = listen_socket.accept()
+            print("connected to " + str(address))
+            threading.Thread(target=handle_requests, args=(connection,address)).start()
+            #msg = connection.recv(1024)
+            #print("message received: ", msg.decode())
+        except KeyboardInterrupt:
+            exit()
 
 
 if __name__ == "__main__":
@@ -105,13 +83,11 @@ if __name__ == "__main__":
                 server_socket2.connect((socket.gethostname(), PORTS["3"]))
                 server_socket3.connect((socket.gethostname(), PORTS["4"]))
                 server_socket4.connect((socket.gethostname(), PORTS["5"]))
-
             elif (process_id == "2"):
                 server_socket1.connect((socket.gethostname(), PORTS["1"]))
                 server_socket2.connect((socket.gethostname(), PORTS["3"]))
                 server_socket3.connect((socket.gethostname(), PORTS["4"]))
                 server_socket4.connect((socket.gethostname(), PORTS["5"]))
-
             elif (process_id == "3"):
                 server_socket1.connect((socket.gethostname(), PORTS["1"]))
                 server_socket2.connect((socket.gethostname(), PORTS["2"]))
@@ -127,6 +103,9 @@ if __name__ == "__main__":
                 server_socket2.connect((socket.gethostname(), PORTS["2"]))
                 server_socket3.connect((socket.gethostname(), PORTS["3"]))
                 server_socket4.connect((socket.gethostname(), PORTS["4"]))
+        elif (command == "send message"):
+            input("Which server?")
+            intput("What is the message?: ")
         #exit   
         elif (command == "exit"):
             exit()
