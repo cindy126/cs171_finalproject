@@ -17,6 +17,9 @@ PORTS = {
     '5': 5004
 }
 
+server_connections = {}
+client_connections = {}
+
 lock = threading.Lock() 
 
 listen_socket = socket.socket()
@@ -45,6 +48,11 @@ def handle_requests(connection,address):
         if (msg == b''):
             exit()
             return
+        # # keep track of client process ids
+        elif (msg == b'C1' or msg == b'C2' or msg == b'C3'):
+            client_connections[msg.decode()] = connection
+            m = "server" + process_id + " connected to " + msg.decode()
+            client_connections[msg.decode()].send(m.encode())       
         else:
             print("message received: ", msg.decode())
 
@@ -59,8 +67,6 @@ def listen_to_client(listen_socket):
             connection, address = listen_socket.accept()
             print("connected to " + str(address))
             threading.Thread(target=handle_requests, args=(connection,address)).start()
-            #msg = connection.recv(1024)
-            #print("message received: ", msg.decode())
         except KeyboardInterrupt:
             exit()
 
@@ -76,36 +82,73 @@ if __name__ == "__main__":
 
     while True:
         command = input()
-        #connect
+        #connect to all the other servers
         if (command == "connect"):
             if (process_id == "1"):
                 server_socket1.connect((socket.gethostname(), PORTS["2"]))
+                server_connections["2"] = server_socket1
                 server_socket2.connect((socket.gethostname(), PORTS["3"]))
+                server_connections["3"] = server_socket2
                 server_socket3.connect((socket.gethostname(), PORTS["4"]))
+                server_connections["4"] = server_socket3
                 server_socket4.connect((socket.gethostname(), PORTS["5"]))
+                server_connections["5"] = server_socket4
             elif (process_id == "2"):
                 server_socket1.connect((socket.gethostname(), PORTS["1"]))
+                server_connections["1"] = server_socket1
                 server_socket2.connect((socket.gethostname(), PORTS["3"]))
+                server_connections["3"] = server_socket2
                 server_socket3.connect((socket.gethostname(), PORTS["4"]))
+                server_connections["4"] = server_socket3
                 server_socket4.connect((socket.gethostname(), PORTS["5"]))
+                server_connections["5"] = server_socket4
             elif (process_id == "3"):
                 server_socket1.connect((socket.gethostname(), PORTS["1"]))
+                server_connections["1"] = server_socket1
                 server_socket2.connect((socket.gethostname(), PORTS["2"]))
+                server_connections["2"] = server_socket2
                 server_socket3.connect((socket.gethostname(), PORTS["4"]))
+                server_connections["4"] = server_socket3
                 server_socket4.connect((socket.gethostname(), PORTS["5"]))
+                server_connections["5"] = server_socket4
             elif (process_id == "4"):
                 server_socket1.connect((socket.gethostname(), PORTS["1"]))
+                server_connections["1"] = server_socket1
                 server_socket2.connect((socket.gethostname(), PORTS["2"]))
+                server_connections["2"] = server_socket2
                 server_socket3.connect((socket.gethostname(), PORTS["3"]))
+                server_connections["3"] = server_socket3
                 server_socket4.connect((socket.gethostname(), PORTS["5"]))
+                server_connections["5"] = server_socket4
             elif (process_id == "5"):
                 server_socket1.connect((socket.gethostname(), PORTS["1"]))
+                server_connections["1"] = server_socket1
                 server_socket2.connect((socket.gethostname(), PORTS["2"]))
+                server_connections["2"] = server_socket2
                 server_socket3.connect((socket.gethostname(), PORTS["3"]))
+                server_connections["3"] = server_socket3
                 server_socket4.connect((socket.gethostname(), PORTS["4"]))
-        elif (command == "send message"):
-            input("Which server?")
-            intput("What is the message?: ")
+                server_connections["4"] = server_socket4
+        # send messages in between servers
+        elif (command == "m"):
+            command = input("Which server? (1-5 or all): ")
+            message = input("What is the message?: ")
+            message = message + " -S" + process_id
+            if (command == '1'):
+                server_connections["1"].send(message.encode())
+            elif (command == '2'):
+                server_connections["2"].send(message.encode())
+            elif (command == '3'):
+                server_connections["3"].send(message.encode())
+            elif (command == '4'):
+                server_connections["4"].send(message.encode())
+            elif (command == '5'):
+                server_connections["5"].send(message.encode())
+            elif (command == 'all'):
+                server_socket1.send(message.encode())
+                server_socket2.send(message.encode())
+                server_socket3.send(message.encode())
+                server_socket4.send(message.encode())
         #exit   
         elif (command == "exit"):
             exit()

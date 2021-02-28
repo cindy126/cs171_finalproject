@@ -13,24 +13,40 @@ PORTS = {
     '5': 5004
 }
 
-#connect to servers
-client_socket1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket1.connect((socket.gethostname(), PORTS["1"]))
-
-client_socket2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket2.connect((socket.gethostname(), PORTS["2"]))
-
-client_socket3 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket3.connect((socket.gethostname(), PORTS["3"]))
-
-client_socket4 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket4.connect((socket.gethostname(), PORTS["4"]))
-
-client_socket5 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket5.connect((socket.gethostname(), PORTS["5"]))
-
 if __name__ == "__main__":
     processID = sys.argv[1]
+    server_message = "C" + processID
+
+    #connect to servers
+    client_socket1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket1.connect((socket.gethostname(), PORTS["1"]))
+    client_socket1.send(server_message.encode())
+    msg = client_socket1.recv(1024)
+    print(msg.decode())
+
+    client_socket2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket2.connect((socket.gethostname(), PORTS["2"]))
+    client_socket2.send(server_message.encode())
+    msg = client_socket2.recv(1024)
+    print(msg.decode())
+
+    client_socket3 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket3.connect((socket.gethostname(), PORTS["3"]))
+    client_socket3.send(server_message.encode())
+    msg = client_socket3.recv(1024)
+    print(msg.decode())
+
+    client_socket4 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket4.connect((socket.gethostname(), PORTS["4"]))
+    client_socket4.send(server_message.encode())
+    msg = client_socket4.recv(1024)
+    print(msg.decode())
+
+    client_socket5 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket5.connect((socket.gethostname(), PORTS["5"]))
+    client_socket5.send(server_message.encode())
+    msg = client_socket5.recv(1024)
+    print(msg.decode())
 
     while True:
         command = input("Which server? (1-5 or all): ")
