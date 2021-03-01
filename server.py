@@ -8,6 +8,7 @@ from collections import namedtuple
 from hashlib import sha256
 import pickle
 from os import path
+import json
 
 
 IP = "127.0.0.1"
@@ -76,10 +77,24 @@ def handle_requests(connection,address):
         elif (msg == b'C1' or msg == b'C2' or msg == b'C3'):
             client_connections[msg.decode()] = connection
             m = "server" + process_id + " connected to " + msg.decode()
-            client_connections[msg.decode()].send(m.encode())       
+            client_connections[msg.decode()].send(m.encode())
+            ack = client_connections[msg.decode()].recv(1024) 
+            print(ack.decode())  
+        elif (connection == client_connections['C1']):
+            print("received message: ", msg.decode(), "from client 1")
+            connection.send(b"ack")
+            threading.Thread(target=send_to_all_servers, args=(msg,)).start()
         else:
-            print("message received: ", msg.decode())
+            print("received message:", msg.decode(), "to server", process_id)
 
+def send_to_all_servers(msg):
+    msg = msg.decode()
+    msg = msg + " from server " + process_id
+    print("sending " + msg)
+    server_socket1.send(msg.encode())
+    server_socket2.send(msg.encode())
+    server_socket3.send(msg.encode())
+    server_socket4.send(msg.encode())
 
 def listen_to_client(listen_socket):
     listen_socket.bind((socket.gethostname(), PORTS[process_id]))
@@ -102,10 +117,13 @@ if __name__ == "__main__":
     print("------empty blockchain BEFORE import------")
     print(blockchain)
     
-    f = 'outfile' + process_id
-    if path.exists(f):
-        with open (f, 'rb') as out:
-            blockchain = pickle.load(out)
+    # f = 'outfile' + process_id
+    # if path.exists(f):
+    #     with open (f, 'rb') as out:
+    #         blockchain = pickle.load(out)
+
+    with open('data.json', 'w') as f:
+        json.dump(blockchain, f)
 
     #print blockchain AFTER IMPORT
     print("------blockchain AFTER import------")
@@ -165,26 +183,6 @@ if __name__ == "__main__":
                 server_connections["3"] = server_socket3
                 server_socket4.connect((socket.gethostname(), PORTS["4"]))
                 server_connections["4"] = server_socket4
-        # send messages in between servers
-        elif (command == "m"):
-            command = input("Which server? (1-5 or all): ")
-            message = input("What is the message?: ")
-            message = message + " -S" + process_id
-            if (command == '1'):
-                server_connections["1"].send(message.encode())
-            elif (command == '2'):
-                server_connections["2"].send(message.encode())
-            elif (command == '3'):
-                server_connections["3"].send(message.encode())
-            elif (command == '4'):
-                server_connections["4"].send(message.encode())
-            elif (command == '5'):
-                server_connections["5"].send(message.encode())
-            elif (command == 'all'):
-                server_socket1.send(message.encode())
-                server_socket2.send(message.encode())
-                server_socket3.send(message.encode())
-                server_socket4.send(message.encode())
         elif (command == 'b'):
             dummy1 = operation('get', 'cindy_netid', {'phone_number':'111-222-3333'})
             dummy2 = operation('get', 'kaylee_netid', {'phone_number':'444-555-6666'})
