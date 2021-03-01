@@ -58,20 +58,20 @@ while True:
     if command == '1':
         client_socket1.send(msg.encode())
         ack = client_socket1.recv(1024)
-        print(ack.decode())
+        print(ack.decode(), "from server 1")
     elif command == '2':
         client_socket2.send(msg.encode())
         ack = client_socket2.recv(1024)
-        print(ack.decode())
+        print(ack.decode(), "from server 2")
     elif command == '3':
         client_socket3.send(msg.encode())
         ack =client_socket3.recv(1024)
-        print(ack.decode(), "from server 5")
+        print(ack.decode(), "from server 3")
     elif command == '4':
         client_socket4.send(msg.encode())
         ack =client_socket4.recv(1024)
-        print(ack.decode(), "from server 5")
+        print(ack.decode(), "from server 4")
     elif command == '5':
         client_socket5.send(msg.encode())
         ack = client_socket5.recv(1024)
-        print(ack.decode(),"from server 5")
+        print(ack.decode(), "from server 5")

@@ -9,6 +9,7 @@ from hashlib import sha256
 import pickle
 from os import path
 import json
+#import jsonpickle
 
 
 IP = "127.0.0.1"
@@ -58,6 +59,10 @@ def exit():
     f = 'outfile' + process_id
     with open(f, 'wb') as out:
         pickle.dump(blockchain, out)
+
+    # a = jsonpickle.encode(blockchain) # create blockchain obj into json
+    # with open(f) as json_file:
+        
     sys.stdout.flush()
     listen_socket.close()
     server_socket1.close()
@@ -117,17 +122,35 @@ if __name__ == "__main__":
     print("------empty blockchain BEFORE import------")
     print(blockchain)
     
-    # f = 'outfile' + process_id
-    # if path.exists(f):
-    #     with open (f, 'rb') as out:
-    #         blockchain = pickle.load(out)
-
-    with open('data.json', 'w') as f:
-        json.dump(blockchain, f)
+    f = 'outfile' + process_id
+    if path.exists(f):
+        with open (f, 'rb') as out:
+            blockchain = pickle.load(out)
 
     #print blockchain AFTER IMPORT
-    print("------blockchain AFTER import------")
-    print(blockchain)
+    # f = 'data' + process_id + '.txt'
+    # if path.exists(f):
+    #     a = jsonpickle.encode(blockchain)
+
+    #     with open(f) as json_file:
+    #         json.load(json_file)
+        
+        print("------blockchain AFTER import------")
+        print(blockchain)
+    #print blockchain IF blockchain is empty (START)
+    else:
+        dummy1 = operation('get', 'cindy_netid', {'phone_number':'111-222-3333'})
+        dummy2 = operation('get', 'kaylee_netid', {'phone_number':'444-555-6666'})
+
+        block1 = block(dummy1, 'ABC', 'SHA256')
+        block2 = block(dummy2, 'DEF', 'SHA256')
+
+        blockchain.append(block1)
+        blockchain.append(block2)
+
+        # print blockchain WITH values
+        print("------blockchain with values------")
+        print(blockchain)
 
     #connect to server
     print("Connect to process_id " + process_id)
@@ -183,19 +206,6 @@ if __name__ == "__main__":
                 server_connections["3"] = server_socket3
                 server_socket4.connect((socket.gethostname(), PORTS["4"]))
                 server_connections["4"] = server_socket4
-        elif (command == 'b'):
-            dummy1 = operation('get', 'cindy_netid', {'phone_number':'111-222-3333'})
-            dummy2 = operation('get', 'kaylee_netid', {'phone_number':'444-555-6666'})
-
-            block1 = block(dummy1, 'ABC', 'SHA256')
-            block2 = block(dummy2, 'DEF', 'SHA256')
-
-            blockchain.append(block1)
-            blockchain.append(block2)
-
-            # print blockchain WITH values
-            print("------blockchain with values------")
-            print(blockchain)
         #exit   
         elif (command == "exit"):
             exit()
