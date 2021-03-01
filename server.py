@@ -5,17 +5,20 @@ import os
 import queue
 import time
 from collections import namedtuple
+from hashlib import sha256
+import pickle
+from os import path
 
 
 IP = "127.0.0.1"
 BUFFER_SIZE = 1024
 
 PORTS = {
-    '1': 5000,
-    '2': 5001,
-    '3': 5002,
-    '4': 5003,
-    '5': 5004
+    '1': 3000,
+    '2': 3001,
+    '3': 3002,
+    '4': 3003,
+    '5': 3004
 }
 
 # DATA STRUCTURE INTIALIZATION
@@ -27,7 +30,7 @@ q = queue.Queue()
 # block: operation, nonce, hash
 # blockchain: list
 operation = namedtuple('operation',['op', 'key', 'value'])
-block = namedtuple('block',['operation', 'nonce', 'has'])
+block = namedtuple('block',['operation', 'nonce', 'hash'])
 blockchain = []
 
 # key-value store: dictionary
@@ -50,6 +53,10 @@ server_socket4 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 lock = threading.Lock() 
 
 def exit():
+    # pickle dump
+    f = 'outfile' + process_id
+    with open(f, 'wb') as out:
+        pickle.dump(blockchain, out)
     sys.stdout.flush()
     listen_socket.close()
     server_socket1.close()
@@ -57,6 +64,7 @@ def exit():
     server_socket3.close()
     server_socket4.close()
     os._exit(0)
+
     
 def handle_requests(connection,address):
     while True:
@@ -89,7 +97,19 @@ def listen_to_client(listen_socket):
 
 if __name__ == "__main__":
     process_id = sys.argv[1]
-    #PORT = sys.argv[2]
+
+    #print empty blockchain/BEFORE IMPORT
+    print("------empty blockchain BEFORE import------")
+    print(blockchain)
+    
+    f = 'outfile' + process_id
+    if path.exists(f):
+        with open (f, 'rb') as out:
+            blockchain = pickle.load(out)
+
+    #print blockchain AFTER IMPORT
+    print("------blockchain AFTER import------")
+    print(blockchain)
 
     #connect to server
     print("Connect to process_id " + process_id)
@@ -165,6 +185,19 @@ if __name__ == "__main__":
                 server_socket2.send(message.encode())
                 server_socket3.send(message.encode())
                 server_socket4.send(message.encode())
+        elif (command == 'b'):
+            dummy1 = operation('get', 'cindy_netid', {'phone_number':'111-222-3333'})
+            dummy2 = operation('get', 'kaylee_netid', {'phone_number':'444-555-6666'})
+
+            block1 = block(dummy1, 'ABC', 'SHA256')
+            block2 = block(dummy2, 'DEF', 'SHA256')
+
+            blockchain.append(block1)
+            blockchain.append(block2)
+
+            # print blockchain WITH values
+            print("------blockchain with values------")
+            print(blockchain)
         #exit   
         elif (command == "exit"):
             exit()
