@@ -4,6 +4,7 @@ import threading
 import os
 import queue
 import time
+from collections import namedtuple
 
 
 IP = "127.0.0.1"
@@ -17,21 +18,36 @@ PORTS = {
     '5': 5004
 }
 
+# DATA STRUCTURE INTIALIZATION
+# queue to hold temporary operations
+q = queue.Queue()
+
+# blockchain intiliazation
+# operation: op, key, value
+# block: operation, nonce, hash
+# blockchain: list
+operation = namedtuple('operation',['op', 'key', 'value'])
+block = namedtuple('block',['operation', 'nonce', 'has'])
+blockchain = []
+
+# key-value store: dictionary
+key_value = {}
+
+#server and client connections
 server_connections = {}
 client_connections = {}
 
-lock = threading.Lock() 
-
+#client socket (in-socket)
 listen_socket = socket.socket()
 listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
+#server socket (out-socket)
 server_socket1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
 server_socket2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
 server_socket3 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
 server_socket4 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+lock = threading.Lock() 
 
 def exit():
     sys.stdout.flush()
