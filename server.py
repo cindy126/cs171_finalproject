@@ -78,7 +78,7 @@ def handle_requests(connection,address):
         if (msg == b''):
             exit()
             return
-        # # keep track of client process ids
+        # keep track of client process ids
         elif (msg == b'C1' or msg == b'C2' or msg == b'C3'):
             client_connections[msg.decode()] = connection
             m = "server" + process_id + " connected to " + msg.decode()
@@ -148,9 +148,18 @@ if __name__ == "__main__":
         blockchain.append(block1)
         blockchain.append(block2)
 
+
         # print blockchain WITH values
-        print("------blockchain with values------")
+        print("------blockchain values------")
         print(blockchain)
+        
+    # add blockchain to key-value 
+    print("------key value stored------")
+    #print(operation._make(dummy1))
+    for i in blockchain:
+        key_value[i.operation.key] = i.operation.value
+    
+    print(key_value)
 
     #connect to server
     print("Connect to process_id " + process_id)
