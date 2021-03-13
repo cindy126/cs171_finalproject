@@ -51,27 +51,20 @@ client_socket5.send(server_message.encode())
 msg = client_socket5.recv(1024)
 print(msg.decode())
 client_socket5.send(b"ack sent from C1")
-        
+
+leader = client_socket1
+
+
 while True:
-    command = input("Which server? (1-5): ")
-    msg = input("What is the message?: ")
-    if command == '1':
-        client_socket1.send(msg.encode())
-        ack = client_socket1.recv(1024)
-        print(ack.decode(), "from server 1")
-    elif command == '2':
-        client_socket2.send(msg.encode())
-        ack = client_socket2.recv(1024)
-        print(ack.decode(), "from server 2")
-    elif command == '3':
-        client_socket3.send(msg.encode())
-        ack =client_socket3.recv(1024)
-        print(ack.decode(), "from server 3")
-    elif command == '4':
-        client_socket4.send(msg.encode())
-        ack =client_socket4.recv(1024)
-        print(ack.decode(), "from server 4")
-    elif command == '5':
-        client_socket5.send(msg.encode())
-        ack = client_socket5.recv(1024)
-        print(ack.decode(), "from server 5")
+    command = input()
+    if (command[0:9] == "Operation"):
+        #Operation(op, key, value)
+        #Operation(get, Cindy, 714-122-222)
+        leader.send(command.encode())
+        if (command[10:13] == "get"):
+            print("get")
+        elif (command[10:13] == "put"):
+            print("put")
+
+
+    

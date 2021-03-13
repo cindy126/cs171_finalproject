@@ -54,11 +54,17 @@ server_socket4 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 lock = threading.Lock() 
 
+ballotNum = (0, '0', 0) # ballotnum, processid, depth
+acceptNum = (0, 0) # ballotnum, processid, depth
+acceptVal = None
+leader = None
+
+
 def exit():
     # pickle dump
-    f = 'outfile' + process_id
-    with open(f, 'wb') as out:
-        pickle.dump(blockchain, out)
+    #f = 'outfile' + process_id
+    #with open(f, 'wb') as out:
+     #   pickle.dump(blockchain, out)
 
     # a = jsonpickle.encode(blockchain) # create blockchain obj into json
     # with open(f) as json_file:
@@ -71,36 +77,55 @@ def exit():
     server_socket4.close()
     os._exit(0)
 
-    
+# getting messages from everywhere (both clients and servers)
 def handle_requests(connection,address):
     while True:
-        msg = connection.recv(1024)
-        if (msg == b''):
-            exit()
-            return
-        # keep track of client process ids
-        elif (msg == b'C1' or msg == b'C2' or msg == b'C3'):
-            client_connections[msg.decode()] = connection
-            m = "server" + process_id + " connected to " + msg.decode()
-            client_connections[msg.decode()].send(m.encode())
-            ack = client_connections[msg.decode()].recv(1024) 
-            print(ack.decode())  
-        elif (connection == client_connections['C1']):
-            print("received message: ", msg.decode(), "from client 1")
-            connection.send(b"ack")
-            threading.Thread(target=send_to_all_servers, args=(msg,)).start()
-        else:
-            print("received message:", msg.decode(), "to server", process_id)
+        msg = connection.recv(1024).decode()
+        print(msg)
+        msg = msg.split(",")
 
+        with lock:
+            if (msg == ''):
+                exit()
+                return
+        
+            # keep track of client process ids
+            elif (msg[0] == 'C1' or msg[0] == 'C2' or msg[0] == 'C3'):
+                client_connections[msg[0]] = connection
+                m = "server" + process_id + " connected to " + msg[0]
+                client_connections[msg[0]].send(m.encode())
+                ack = client_connections[msg[0]].recv(1024) 
+                print(ack.decode())
+            elif (msg[0] == 'leader'):
+                Phase1a(msg)
+                print('leader')
+            elif (msg[0] == 'prepare'):
+                Phase1b(msg)
+            elif (msg[0] == 'promise'):
+                print('promise')
+            elif (msg[0] == 'accept'):
+                print('promise')
+            elif (msg[0] == "Operation(get"):
+                # get function
+
+            
+        # elif (connection == client_connections['C1']):
+        #     print("received message: ", msg.decode(), "from client 1")
+        #     connection.send(b"ack")
+        #     threading.Thread(target=send_to_all_servers, args=(msg,)).start()
+        # else:
+        #     print("received message:", msg.decode(), "to server", process_id)
+
+# broadcasting message to servers
 def send_to_all_servers(msg):
-    msg = msg.decode()
-    msg = msg + " from server " + process_id
+    #msg = msg + " from server " + process_id
     print("sending " + msg)
     server_socket1.send(msg.encode())
     server_socket2.send(msg.encode())
     server_socket3.send(msg.encode())
     server_socket4.send(msg.encode())
 
+# listen for client initial connection
 def listen_to_client(listen_socket):
     listen_socket.bind((socket.gethostname(), PORTS[process_id]))
     listen_socket.listen()
@@ -113,20 +138,38 @@ def listen_to_client(listen_socket):
             threading.Thread(target=handle_requests, args=(connection,address)).start()
         except KeyboardInterrupt:
             exit()
+    
+def Phase1a():
+    ballotNum = (ballotNum[0] + 1, int(process_id), 0)
+    msg = "prepare" + "," + str(ballotNum[0]) + "," + str(ballotNum[1]) + "," + str(ballotNum[2]) + "," + process_id
+    send_to_all_servers(msg)
+    return
 
+# promise
+def Phase1b(connection, N):
+    if (int(N) > ballotNum[0]):
+        msg = "promise".encode()
 
+def Phase2a():
+    return
+
+def Phase2b():
+    return
+
+def Phase3():
+    return
+    
 if __name__ == "__main__":
     process_id = sys.argv[1]
 
     #print empty blockchain/BEFORE IMPORT
-    print("------empty blockchain BEFORE import------")
-    print(blockchain)
+    #print("------empty blockchain BEFORE import------")
+    #print(blockchain)
     
-    f = 'outfile' + process_id
-    if path.exists(f):
-        with open (f, 'rb') as out:
-            blockchain = pickle.load(out)
-
+    #f = 'outfile' + process_id
+    #if path.exists(f):
+        #with open (f, 'rb') as out:
+          #  blockchain = pickle.load(out)
     #print blockchain AFTER IMPORT
     # f = 'data' + process_id + '.txt'
     # if path.exists(f):
@@ -135,31 +178,31 @@ if __name__ == "__main__":
     #     with open(f) as json_file:
     #         json.load(json_file)
         
-        print("------blockchain AFTER import------")
-        print(blockchain)
+        #print("------blockchain AFTER import------")
+        #print(blockchain)
     #print blockchain IF blockchain is empty (START)
-    else:
-        dummy1 = operation('get', 'cindy_netid', {'phone_number':'111-222-3333'})
-        dummy2 = operation('get', 'kaylee_netid', {'phone_number':'444-555-6666'})
+    #else:
+        #dummy1 = operation('get', 'cindy_netid', {'phone_number':'111-222-3333'})
+       # dummy2 = operation('get', 'kaylee_netid', {'phone_number':'444-555-6666'})
 
-        block1 = block(dummy1, 'ABC', 'SHA256')
-        block2 = block(dummy2, 'DEF', 'SHA256')
+        #block1 = block(dummy1, 'ABC', 'SHA256')
+        #block2 = block(dummy2, 'DEF', 'SHA256')
 
-        blockchain.append(block1)
-        blockchain.append(block2)
+        #blockchain.append(block1)
+        #blockchain.append(block2)
 
 
         # print blockchain WITH values
-        print("------blockchain values------")
-        print(blockchain)
+        #print("------blockchain values------")
+        #print(blockchain)
         
     # add blockchain to key-value 
-    print("------key value stored------")
+    #print("------key value stored------")
     #print(operation._make(dummy1))
-    for i in blockchain:
-        key_value[i.operation.key] = i.operation.value
+    #for i in blockchain:
+        #key_value[i.operation.key] = i.operation.value
     
-    print(key_value)
+    #print(key_value)
 
     #connect to server
     print("Connect to process_id " + process_id)
@@ -179,6 +222,7 @@ if __name__ == "__main__":
                 server_connections["4"] = server_socket3
                 server_socket4.connect((socket.gethostname(), PORTS["5"]))
                 server_connections["5"] = server_socket4
+
             elif (process_id == "2"):
                 server_socket1.connect((socket.gethostname(), PORTS["1"]))
                 server_connections["1"] = server_socket1
@@ -188,6 +232,7 @@ if __name__ == "__main__":
                 server_connections["4"] = server_socket3
                 server_socket4.connect((socket.gethostname(), PORTS["5"]))
                 server_connections["5"] = server_socket4
+
             elif (process_id == "3"):
                 server_socket1.connect((socket.gethostname(), PORTS["1"]))
                 server_connections["1"] = server_socket1
@@ -197,6 +242,7 @@ if __name__ == "__main__":
                 server_connections["4"] = server_socket3
                 server_socket4.connect((socket.gethostname(), PORTS["5"]))
                 server_connections["5"] = server_socket4
+
             elif (process_id == "4"):
                 server_socket1.connect((socket.gethostname(), PORTS["1"]))
                 server_connections["1"] = server_socket1
@@ -206,6 +252,7 @@ if __name__ == "__main__":
                 server_connections["3"] = server_socket3
                 server_socket4.connect((socket.gethostname(), PORTS["5"]))
                 server_connections["5"] = server_socket4
+
             elif (process_id == "5"):
                 server_socket1.connect((socket.gethostname(), PORTS["1"]))
                 server_connections["1"] = server_socket1
@@ -218,3 +265,6 @@ if __name__ == "__main__":
         #exit   
         elif (command == "exit"):
             exit()
+
+
+# 
