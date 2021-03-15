@@ -119,13 +119,25 @@ def send_to_all_servers(msg):
     #msg = msg + " from server " + process_id
     print("Sending to all servers: " + msg)
     if (states[server_socket1] == True):
-        server_socket1.send(msg.encode())
+        try:
+            server_socket1.send(msg.encode())
+        except Exception as e:
+            print('wuhoh')
     if (states[server_socket2] == True):
-        server_socket2.send(msg.encode())
+        try:
+            server_socket2.send(msg.encode())
+        except Exception as e:
+            print('wuhoh')
     if (states[server_socket3] == True):
-        server_socket3.send(msg.encode())
+        try:
+            server_socket3.send(msg.encode())
+        except Exception as e:
+            print('wuhoh')
     if (states[server_socket4] == True):
-        server_socket4.send(msg.encode())
+        try:
+            server_socket4.send(msg.encode())
+        except Exception as e:
+            print('wuhoh')
 
 # broadcast to all clients
 def send_to_all_clients(msg):
@@ -141,7 +153,7 @@ def handle_requests(connection,address):
         msg = connection.recv(BUFFER_SIZE).decode()
         #print("THIS IS THE THE MESSAGE: ", msg)
         if (msg == ''):
-            exit()
+            print("OH NO")
             return
         msg = msg.split(",")
     
@@ -474,10 +486,9 @@ def insertBlock(msg):
     acceptVal = 'NULL'
     
 def exit():
-    # pickle dump
-    #f = 'outfile' + process_id
-    #with open(f, 'wb') as out:
-     #   pickle.dump(blockchain, out)
+    # f = 'outfile' + process_id
+    # with open(f, 'wb') as out:
+    #    pickle.dump(blockchain, out)
 
     # a = jsonpickle.encode(blockchain) # create blockchain obj into json
     # with open(f) as json_file:
@@ -492,48 +503,21 @@ def exit():
 
 
 if __name__ == "__main__":
-
-    #print empty blockchain/BEFORE IMPORT
-    #print("------empty blockchain BEFORE import------")
-    #print(blockchain)
+    print("------empty blockchain BEFORE import------")
+    print(blockchain)
     
-    #f = 'outfile' + process_id
-    #if path.exists(f):
-        #with open (f, 'rb') as out:
-          #  blockchain = pickle.load(out)
-    #print blockchain AFTER IMPORT
-    # f = 'data' + process_id + '.txt'
-    # if path.exists(f):
-    #     a = jsonpickle.encode(blockchain)
+    f = 'outfile' + process_id
+    if path.exists(f):
+        with open (f, 'rb') as out:
+           blockchain = pickle.load(out)
 
-    #     with open(f) as json_file:
-    #         json.load(json_file)
+    print("------blockchain with values------")
+    print(blockchain)
         
-        #print("------blockchain AFTER import------")
-        #print(blockchain)
-    #print blockchain IF blockchain is empty (START)
-    #else:
-        #dummy1 = operation('get', 'cindy_netid', {'phone_number':'111-222-3333'})
-       # dummy2 = operation('get', 'kaylee_netid', {'phone_number':'444-555-6666'})
-
-        #block1 = block(dummy1, 'ABC', 'SHA256')
-        #block2 = block(dummy2, 'DEF', 'SHA256')
-
-        #blockchain.append(block1)
-        #blockchain.append(block2)
-
-
-        # print blockchain WITH values
-        #print("------blockchain values------")
-        #print(blockchain)
-        
-    # add blockchain to key-value 
-    #print("------key value stored------")
-    #print(operation._make(dummy1))
-    #for i in blockchain:
-        #key_value[i.operation.key] = i.operation.value
-    
-    #print(key_value)
+    print("------key value stored------")
+    for i in blockchain:
+        key_value[i.operation.key] = i.operation.value
+    print(key_value)
 
     #connect to server
     print("Connect to process_id " + process_id)
@@ -590,16 +574,6 @@ if __name__ == "__main__":
                 server_connections["3"] = server_socket3
                 server_socket4.connect((socket.gethostname(), PORTS["4"]))
                 server_connections["4"] = server_socket4
-
-        # elif (command[0:8] == "failLink"):  # failLink(P1, P2)
-        #     states[(IP, PORTS[command[14]])] = False
-        #     print("fail link")
-        # elif (command[0:7] == "fixLink"):
-        #     states[(IP, PORTS[command(13)])] = True
-        #     print("fixLink")
-        # elif (command[0:7] == "fixLink"): # fixLink(P1, P2)
-        #     states[(IP, PORTS[command(13)])] = True
-        #     print("fixLink")
         elif (command[0:8] == "failLink"): # failLink(P1, P2)
             print(command[14])
             print(type(command[14]))
@@ -615,14 +589,21 @@ if __name__ == "__main__":
             print(command[13])
             states[server_connections[command[13]]] = True
         elif (command[0:11] == "failProcess"):
-            print("failProcess")
+            print("begin failProcess")
+            print(blockchain)
+            print(type(blockchain))
+            f = 'outfile' + process_id
+            with open(f, 'wb') as out:
+                pickle.dump(blockchain, out)
+            os._exit(0)
+
         elif (command == "printBlockchain"):
             for i in range(len(blockchain)):
-                block = blockchain[i]
+                bl = blockchain[i]
                 print("---------- block " + str(i+1) + "----------")
-                print('operations:', block[0])
-                print('nonce:', block[1])
-                print('hash:', block[2])
+                print('operations:', bl[0])
+                print('nonce:', bl[1])
+                print('hash:', bl[2])
                 print('------- end blockchain -------')
         elif (command == "printKVStore"):
             print("-------- key values -----------")

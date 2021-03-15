@@ -458,13 +458,14 @@ def insertBlock(msg):
     operation0 = op1[0]
     key = op1[1][1:]
     value = op1[2][1:-5]
-    op = operation(operation0, key, value)
+    op = (operation0, key, value)
 
     print(op)
     print(acceptVal)
     
     # append block to blockchain
     blockchain.append(block(op, acceptVal[1], acceptVal[2]))
+    print(blockchain)
     # add block to key-value 
     key_value[blockchain[-1].operation.key] = blockchain[-1].operation.value
 
