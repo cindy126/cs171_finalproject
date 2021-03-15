@@ -4,6 +4,7 @@ from queue import PriorityQueue
 import threading
 import time
 import os
+import random
 
 PORTS = {
     '1': 5000,
@@ -52,19 +53,45 @@ msg = client_socket5.recv(1024)
 print(msg.decode())
 client_socket5.send(b"ack sent from C1")
 
+server_connection = {
+    '1' : client_socket1,
+    '2' : client_socket2,
+    '3' : client_socket3,
+    '4' : client_socket4,
+    '5' : client_socket5
+}
+
+lock = threading.Lock()
+received = False
 leader = client_socket1
 
 
+def timeout():
+    global received
+    while True:
+        msg = ""
+        msg = leader.recv(1024).decode()
+        if (msg != ""):
+            received = True
+            print("MESSAGE IS:", msg)
+
 while True:
     command = input()
-    if (command[0:9] == "Operation"):
-        #Operation(op, key, value)
-        #Operation(get, Cindy, 714-122-222)
-        leader.send(command.encode())
-        if (command[10:13] == "get"):
-            print("get")
-        elif (command[10:13] == "put"):
-            print("put")
+    received = False
+    if(command[10:13] == "get" or command[10:13] == "put"):
+        # attach client id to message
+        msg = command + "//" + "C" + processID
+        #print(leader)
+        leader.send(msg.encode())
+        threading.Thread(target=timeout).start()
+        time.sleep(15)
+        print("received: ", str(received))
+
+        if (received == False):
+            pid = str(random.randint(1,5))
+            server_connection[pid].send(b"leader")
+            # client thinks this is the new leader and sets its leader value
+            leader = server_connection[pid]
 
 
     
