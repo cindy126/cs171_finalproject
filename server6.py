@@ -193,8 +193,10 @@ def handle_requests(connection,address):
                 if (leader == process_id):
                     print("putting operation in queue")
                     q.put(msg)
-                    for i in range(q.qsize()):
-                        print(q.queue[i])
+                    if (q.empty()):
+                        print("TRUE")
+                    else:
+                        print("FALSE")
 
                 elif (leader != None):
                     server_connections[leader].send(msg.encode())
@@ -300,7 +302,6 @@ def paxos():
 
             # send decide
             print("Sending message to client to specific client")
-            print("Client is: ", client)
             threading.Thread(target = send_to_client, args = (client_connections[client], "ack")).start()
 
     
