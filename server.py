@@ -1,3 +1,4 @@
+
 import socket
 import sys
 import threading
@@ -215,7 +216,7 @@ def paxos():
         if (q.empty()):
             continue 
         # queue is NOT empty
-        if (q.queue[0][10:13] == "get"): #Operation(get,cindy)
+        if (q.queue[0][10:13] == "get" and leader == process_id): #Operation(get,cindy)
             print("Performing get operation")
             with lock:
                 # Operation(get, Cindy)//C1
@@ -279,7 +280,15 @@ def paxos():
         with lock:
             print("----------phase3 (receiving accept messages)---------")
             print("Total number of accepted: ", str(accepted))
-            if accepted < 2:    # check number of accepeted responses
+            # did not get the correct number of accepts
+            if accepted < 2:
+                print("Did not receiv the majority number of accepts")
+                q.get()    # check number of accepeted responses
+                accepted = 0
+                promises = []
+                ballotNum = (0, process_id, 0)
+                acceptNum = (0, '', 0)
+                acceptVal = None 
                 continue
         # phase 3 decision
         with lock:
