@@ -19,12 +19,32 @@ BUFFER_SIZE = 1024
 #receive process_id
 process_id = sys.argv[1]
 
+# Dictionary containing all ports of all processes
 PORTS = {
-    '1': 5000,
-    '2': 5001,
-    '3': 5002,
-    '4': 5003,
-    '5': 5004
+    "1": 3001, 
+    "2": 3002, 
+    "3": 3003, 
+    "4": 3004, 
+    "5": 3005
+}
+
+# Dictionary containing the state of each connection
+# Address: Connection state (bool)
+CONN_STATE = {
+    (IP, 3001): True,
+    (IP, 3002): True,
+    (IP, 3003): True,
+    (IP, 3004): True,
+    (IP, 3005): True
+}
+
+# For testing purposes
+addr_to_PID = {
+    (IP, 3001): '1',
+    (IP, 3002): '2',
+    (IP, 3003): '3',
+    (IP, 3004): '4',
+    (IP, 3005): '5'
 }
 
 # DATA STRUCTURE INTIALIZATION
@@ -62,27 +82,17 @@ promises = []
 # accepted messages response
 accepted = 0
 
-#server and client connections
-server_connections = {} #1, #2, #3. #4. #5
+# client connections
 client_connections = {}
 
-#client socket (in-socket)
+# client socket (in-socket)
 listen_socket = socket.socket()
 listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-#server socket (out-socket)
-server_socket1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket3 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket4 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-states = {
-    server_socket1: True,
-    server_socket2: True,
-    server_socket3: True,
-    server_socket4: True,
-    listen_socket: True
-}
+# Create server socket
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind((IP, PORTS[process_id]))
 
 lock = threading.Lock() 
 
@@ -96,48 +106,24 @@ def listen_to_client(listen_socket):
         try:
             connection, address = listen_socket.accept()
             print("connected to " + str(address))
-            threading.Thread(target=handle_requests, args=(connection,address)).start()
+            threading.Thread(target=handle_requests_from_client, args=(connection,address)).start()
         except KeyboardInterrupt:
             exit()
 
-def send(socket, msg):
-    with lock:
-        time.sleep(2)
-        print("SEND: ", msg)
-        if (states[socket] == True):
-            print("HELLO?")
-            socket.send(msg.encode())
+def send(addr, msg):
+    # Fixed delay for each message
+    time.sleep(2)
+    print("sending.....")
+    # Check if connection is valid
+    if CONN_STATE[addr]:
+        s.sendto(msg.encode(),addr)
+
 
 def send_to_client(socket, msg):
     with lock:
         time.sleep(2)
         print("SENDING TO CLIENT ", msg)
         socket.send(msg.encode())
-
-# broadcasting message to servers
-def send_to_all_servers(msg):
-    #msg = msg + " from server " + process_id
-    print("Sending to all servers: " + msg)
-    if (states[server_socket1] == True):
-        try:
-            server_socket1.send(msg.encode())
-        except Exception as e:
-            print('wuhoh')
-    if (states[server_socket2] == True):
-        try:
-            server_socket2.send(msg.encode())
-        except Exception as e:
-            print('wuhoh')
-    if (states[server_socket3] == True):
-        try:
-            server_socket3.send(msg.encode())
-        except Exception as e:
-            print('wuhoh')
-    if (states[server_socket4] == True):
-        try:
-            server_socket4.send(msg.encode())
-        except Exception as e:
-            print('wuhoh')
 
 # broadcast to all clients
 def send_to_all_clients(msg):
@@ -146,29 +132,52 @@ def send_to_all_clients(msg):
     client_connections["C2"].send(msg.encode())
     client_connections["C3"].send(msg.encode())
 
-# getting messages from everywhere (both clients and servers)
-def handle_requests(connection,address):
-    global leader, accepted
+def handle_requests_from_client(connection,address):
     while True:
-        msg = connection.recv(BUFFER_SIZE).decode()
+        msg = connection.recv(1024).decode()
         #print("THIS IS THE THE MESSAGE: ", msg)
         if (msg == ''):
-            print("OH NO")
+            print("another server has failed")
             return
-        msg = msg.split(",")
+        print(msg)
     
         with lock:
             # keep track of client process ids
-            if (msg[0] == 'C1' or msg[0] == 'C2' or msg[0] == 'C3'):    # client connection message
-                client_connections[msg[0]] = connection
-                m = "server" + process_id + " connected to " + msg[0]
-                client_connections[msg[0]].send(m.encode())
-                ack = client_connections[msg[0]].recv(BUFFER_SIZE) 
+            if (msg == 'C1' or msg == 'C2' or msg == 'C3'):    # client connection message
+                client_connections[msg] = connection
+                m = "server" + process_id + " connected to " + msg
+                client_connections[msg].send(m.encode())
+                ack = client_connections[msg].recv(1024)
                 print(ack.decode())
-            elif (msg[0] == 'leader'):
+            elif (msg == 'leader'):
                 threading.Thread(target=leader_election).start() # start leader election
                 #print('leader')
-            elif (msg[0] == 'prepare'): # leader send prepare to all other servers
+            else:
+                if (leader == process_id):
+                    print("putting operation in queue")
+                    q.put(msg)
+                    for i in range(q.qsize()):
+                        print(q.queue[i])
+
+                elif (leader != None):
+                    threading.Thread(target = send, args = ((IP, PORTS[leader]), msg)).start()
+                    print("forwarding message to leader")
+                else:
+                    continue
+
+# getting messages from everywhere (both clients and servers)
+def handle_requests_from_server():
+    global leader, accepted
+    while True:
+        msg, addr = s.recvfrom(1024)
+        print("THIS IS THE THE MESSAGE: ", msg)
+        if (msg == ''):
+            print("OH NO")
+            return
+        msg = msg.decode().split(",")
+    
+        with lock:
+            if (msg[0] == 'prepare'): # leader send prepare to all other servers
                 # pepare, ballonum, processid, depth
                 phase1b(msg)    # how other servers will respond to the prepare
             elif (msg[0] == 'promise'):
@@ -207,12 +216,12 @@ def handle_requests(connection,address):
                     q.put(msg)
                     for i in range(q.qsize()):
                         print(q.queue[i])
-
                 elif (leader != None):
-                    server_connections[leader].send(msg.encode())
+                    threading.Thread(target = send, args = ((IP, PORTS[leader]), msg)).start()
                     print("forwarding message to leader")
                 else:
                     continue
+
 def paxos():
     global ballotNum, promises, blockchain, promises, acceptVal, accepted, key_value
     while True:
@@ -227,6 +236,7 @@ def paxos():
                 m = m.split(",")
                 key = m[1][1:-5]
                 client = m[1][-2:]
+                print(client)
                 
                 if key in key_value:
                     get_message = key_value[key]
@@ -269,7 +279,11 @@ def paxos():
             # accept, ballotnum, processid, depth, acceptval
             acceptMessage = 'accept,' + str(ballotNum[0]) + ',' + ballotNum[1] + ',' + str(ballotNum[2]) + ',' + acceptVal
             print("Sending Accept: ", acceptMessage)
-            threading.Thread(target = send_to_all_servers, args = (acceptMessage,)).start()
+            for conn in PORTS:
+                if conn != process_id:
+                    threading.Thread(target = send, args = ((IP, PORTS[conn]), acceptMessage)).start()
+                    time.sleep(0.1)
+            #threading.Thread(target = send_to_all_servers, args = (acceptMessage,)).start()
 
         time.sleep(4.5) # wait for responses
         
@@ -282,7 +296,11 @@ def paxos():
             print("------decision------")
             print("Sending Decide Message")
             decideMessage = 'decide,' + acceptVal + ',' + str(ballotNum[2])
-            threading.Thread(target = send_to_all_servers, args = (decideMessage,)).start()
+            for conn in PORTS:
+                if conn != process_id:
+                    threading.Thread(target = send, args = ((IP, PORTS[conn]), decideMessage)).start()
+                    time.sleep(0.1)
+            #threading.Thread(target = send_to_all_servers, args = (decideMessage,)).start()
             
             # parse through operation 
             acceptVal = acceptVal.split('||')
@@ -338,13 +356,21 @@ def leader_election():
         # pepare, ballonum, processid, depth
         prepareMessage = "prepare" + "," + str(ballotNum[0]) + "," + str(ballotNum[1]) + "," + str(ballotNum[2])
         print("Sending Prepare: ", prepareMessage)
-        threading.Thread(target = send_to_all_servers, args = (prepareMessage,)).start()
+        for conn in PORTS:
+            if conn != process_id:
+                threading.Thread(target = send, args = ((IP, PORTS[conn]), prepareMessage)).start()
+                time.sleep(0.1)
+        #threading.Thread(target = send_to_all_servers, args = (prepareMessage,)).start()
     time.sleep(4.5) # wait for promises
     with lock:
         if len(promises) >= 2:
             leaderMessage = "notifying," + process_id
             leader = process_id
-            threading.Thread(target = send_to_all_servers, args = (leaderMessage,)).start()
+            for conn in PORTS:
+                if conn != process_id:
+                    threading.Thread(target = send, args = ((IP, PORTS[conn]), leaderMessage)).start()
+                    time.sleep(0.1)
+            #threading.Thread(target = send_to_all_servers, args = (leaderMessage,)).start()
             #threading.Thread(target = send_to_all_clients, args = (leaderMessage,)).start()
         else:
             print("no majority of promises")
@@ -355,21 +381,23 @@ def phase1b(msg):
     global ballotNum, acceptVal, acceptNum, blockchain
     print("Check Depth")
     # check depth
+    print(msg)
     currDepth = int(msg[3])
     if(len(blockchain) > currDepth):
         # proposer has shorter depth than blockchain
         for i in range(currDepth, len(blockchain)):
             b = blockchain[i]
+            print(b)
             addBlock = b[0] + '||' + b[1] + '||' + b[2]
             message = "updateP," + addBlock + "," + str(i)
             # updateP,acceptVal, depth
             print("Sending UpdateP Message")
-            threading.Thread(target=send, args =(server_connections[leader], message)).start()
+            threading.Thread(target=send, args =((IP, PORTS[[msg[2]]]), message)).start()
         return
     elif(len(blockchain) < currDepth):
         # proposer has longer depth than blockchain, need to update blockchain
         message = "updateB," + str(len(blockchain))
-        threading.Thread(target=send, args =(server_connections[leader], message)).start()
+        threading.Thread(target=send, args =((IP,PORTS[msg[2]]), message)).start()
         return
     print("Depth passed")
 
@@ -382,7 +410,7 @@ def phase1b(msg):
         promiseMessage = "promise" + "," + str(ballotNum[0]) + "," +  ballotNum[1] + "," + str(ballotNum[2]) + "," + str(acceptNum[0]) + "," + str(acceptNum[1]) + "," + str(acceptVal)
         print("Sending Promise: ", promiseMessage)
         # send promise to leader
-        threading.Thread(target=send, args=(server_connections[msg[2]], promiseMessage)).start()
+        threading.Thread(target=send, args=((IP, PORTS[msg[2]]), promiseMessage)).start()
 
         
 # receive accept, send out accepted
@@ -397,7 +425,7 @@ def phase2b(msg):
     if (currDepth > len(blockchain)):
         # proposer has longer depth than blockchain, update blockchain
         message = "updateB," + str(len(blockchain))
-        threading.Thread(target=send, args=(server_connections[msg[2]], message)).start()
+        threading.Thread(target=send, args=((IP, PORTS[msg[2]]), message)).start()
         return
     elif (currDepth < len(blockchain)):
         print("IM NOT DOING SHIT")
@@ -412,7 +440,7 @@ def phase2b(msg):
         acceptedMessage = "accepted," + str(acceptNum[0]) + "," + acceptNum[1] + "," + str(acceptNum[2]) + "," + str(acceptVal)
         # sending accepted message
         print("Sending Accepted: ", acceptedMessage)
-        threading.Thread(target=send, args=(server_connections[msg[2]], acceptedMessage)).start()
+        threading.Thread(target=send, args=((IP, PORTS[msg[2]]), acceptedMessage)).start()
 
 
 def updateProposerBlockchain(msg):
@@ -443,6 +471,7 @@ def updateBlockchain(msg):
     print("UPDATE BLOCKCHAIN")
     # updateB, depth
     currDepth = int(msg[1])
+    print("update:, ",msg)
     if(len(blockchain) <= currDepth):
         return
 
@@ -452,7 +481,7 @@ def updateBlockchain(msg):
         addBlock = b[0] + '||' + b[1] + '||' + b[2]
         message = "updateP," + addBlock + "," + str(i)
         # updateP,acceptVal, depth
-        threading.Thread(target=send, args =(server_connections[leader], message)).start()
+        threading.Thread(target=send, args =((IP, PORTS[msg[leader]]), message)).start()
 
 def insertBlock(msg):
     global promises, accepted, ballotNum, acceptNum, acceptVal
@@ -461,6 +490,7 @@ def insertBlock(msg):
 
     print(msg)
     acceptVal = msg[1] + "," + msg[2] + "," + msg[3]
+    print(acceptVal)
     
     # parse through operation 
     acceptVal = acceptVal.split('||')
@@ -495,10 +525,6 @@ def exit():
         
     sys.stdout.flush()
     listen_socket.close()
-    server_socket1.close()
-    server_socket2.close()
-    server_socket3.close()
-    server_socket4.close()
     os._exit(0)
 
 
@@ -522,72 +548,21 @@ if __name__ == "__main__":
     #connect to server
     print("Connect to process_id " + process_id)
 
+    # thread to listen to clients
     threading.Thread(target=listen_to_client, args=(listen_socket,)).start()
+    threading.Thread(target=handle_requests_from_server).start()
+    # thread to start paxos
     threading.Thread(target=paxos).start()
 
     while True:
         command = input()
         #connect to all the other servers
-        if (command == "connect"):
-            if (process_id == "1"):
-                server_socket1.connect((socket.gethostname(), PORTS["2"]))
-                server_connections["2"] = server_socket1
-                server_socket2.connect((socket.gethostname(), PORTS["3"]))
-                server_connections["3"] = server_socket2
-                server_socket3.connect((socket.gethostname(), PORTS["4"]))
-                server_connections["4"] = server_socket3
-                server_socket4.connect((socket.gethostname(), PORTS["5"]))
-                server_connections["5"] = server_socket4
-            elif (process_id == "2"):
-                server_socket1.connect((socket.gethostname(), PORTS["1"]))
-                server_connections["1"] = server_socket1
-                server_socket2.connect((socket.gethostname(), PORTS["3"]))
-                server_connections["3"] = server_socket2
-                server_socket3.connect((socket.gethostname(), PORTS["4"]))
-                server_connections["4"] = server_socket3
-                server_socket4.connect((socket.gethostname(), PORTS["5"]))
-                server_connections["5"] = server_socket4
-            elif (process_id == "3"):
-                server_socket1.connect((socket.gethostname(), PORTS["1"]))
-                server_connections["1"] = server_socket1
-                server_socket2.connect((socket.gethostname(), PORTS["2"]))
-                server_connections["2"] = server_socket2
-                server_socket3.connect((socket.gethostname(), PORTS["4"]))
-                server_connections["4"] = server_socket3
-                server_socket4.connect((socket.gethostname(), PORTS["5"]))
-                server_connections["5"] = server_socket4
-            elif (process_id == "4"):
-                server_socket1.connect((socket.gethostname(), PORTS["1"]))
-                server_connections["1"] = server_socket1
-                server_socket2.connect((socket.gethostname(), PORTS["2"]))
-                server_connections["2"] = server_socket2
-                server_socket3.connect((socket.gethostname(), PORTS["3"]))
-                server_connections["3"] = server_socket3
-                server_socket4.connect((socket.gethostname(), PORTS["5"]))
-                server_connections["5"] = server_socket4
-            elif (process_id == "5"):
-                server_socket1.connect((socket.gethostname(), PORTS["1"]))
-                server_connections["1"] = server_socket1
-                server_socket2.connect((socket.gethostname(), PORTS["2"]))
-                server_connections["2"] = server_socket2
-                server_socket3.connect((socket.gethostname(), PORTS["3"]))
-                server_connections["3"] = server_socket3
-                server_socket4.connect((socket.gethostname(), PORTS["4"]))
-                server_connections["4"] = server_socket4
-        elif (command[0:8] == "failLink"): # failLink(P1, P2)
-            print(command[14])
-            print(type(command[14]))
-            print(states[server_socket1])
-            x = str(command[14])
-            print(server_connections[x])
-            print(server_connections[command[14]])
-            s = server_connections[command[14]]
-            states[s] = False # server_connections[2]
-            print(states[s])
-            print(states)
-        elif (command[0:7] == "fixLink"):
-            print(command[13])
-            states[server_connections[command[13]]] = True
+        if (command[0:8] == "failLink"): # failLink(P1, P2)
+            print("begin failLink")
+            CONN_STATE[(IP, PORTS[command[14]])] = False
+        elif (command[0:7] == "fixLink"): # fixLink(P1, P2)
+            print("begin fixLink")
+            CONN_STATE[(IP, PORTS[command[13]])] = True
         elif (command[0:11] == "failProcess"):
             print("begin failProcess")
             print(blockchain)
@@ -596,8 +571,9 @@ if __name__ == "__main__":
             with open(f, 'wb') as out:
                 pickle.dump(blockchain, out)
             os._exit(0)
-
         elif (command == "printBlockchain"):
+            if (len(blockchain) == 0):
+                print("Blockchain is empty")
             for i in range(len(blockchain)):
                 bl = blockchain[i]
                 print("---------- block " + str(i+1) + "----------")
