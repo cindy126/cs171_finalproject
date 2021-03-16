@@ -160,7 +160,9 @@ def handle_requests_from_server():
         if (msg == ''):
             print("A server has failed")
             return
-        msg = msg.decode().split(",")
+        msg = msg.decode().split("&")
+
+
         with lock:
             if (msg[0] == 'prepare'): # leader send prepare to all other servers
                 # pepare, ballonum, processid, depth
@@ -192,8 +194,10 @@ def handle_requests_from_server():
             elif (msg[0] == 'notifying'):
                 leader = msg[1]
                 print("My leader is ", leader)
+            elif (msg[0] == 'request'):
+                updateBlockchain(msg)
             else:
-                msg = ",".join(msg)
+                msg = "&".join(msg)
                 if (leader == process_id):
                     print("putting operation in queue")
                     q.put(msg)
@@ -214,9 +218,9 @@ def paxos():
         if (q.queue[0][10:13] == "get"): #Operation(get,cindy)
             print("Performing get operation")
             with lock:
-                #Operation(get, Cindy)//C1
+                # Operation(get, Cindy)//C1
                 m = q.queue[0]
-                m = m.split(",")
+                m = m.split(",") # split by comma bc OPERATION
                 key = m[1][1:-5]
                 client = m[1][-2:]
                 
@@ -257,10 +261,9 @@ def paxos():
                 print("----------phase 2a (accept messages sent to servers)---------")
                 promises.sort(reverse=True) # descending
                 acceptVal = promises[0][-1] # get highest ballot number
-                print("ACCEPT VAL: ", acceptVal)
-                print(promises)
+
             # accept, ballotnum, processid, depth, acceptval
-            acceptMessage = 'accept,' + str(ballotNum[0]) + ',' + ballotNum[1] + ',' + str(ballotNum[2]) + ',' + acceptVal
+            acceptMessage = 'accept&' + str(ballotNum[0]) + '&' + ballotNum[1] + '&' + str(ballotNum[2]) + '&' + acceptVal
             print("Sending Accept: ", acceptMessage)
             for conn in PORTS:
                 if conn != process_id:
@@ -279,7 +282,8 @@ def paxos():
         # phase 3 decision
         with lock:
             print("------decision------")
-            decideMessage = 'decide,' + acceptVal + ',' + str(ballotNum[2])
+            print("acceptVal: ", acceptVal)
+            decideMessage = 'decide&' + acceptVal + '&' + str(ballotNum[2])
             for conn in PORTS:
                 if conn != process_id:
                     threading.Thread(target = send, args = ((IP, PORTS[conn]), decideMessage)).start()
@@ -287,22 +291,17 @@ def paxos():
             #threading.Thread(target = send_to_all_servers, args = (decideMessage,)).start()
             
             # parse through operation 
-            print(acceptVal)
             acceptVal = acceptVal.split('||')
-            
             op = acceptVal[0].split("(")
-            
+     
             op1 = op[1].split(",")
             
             # this is Operation
             operation0 = op1[0]
-            
             # this is the key
-            key = op1[1][1:]
-            
+            key = op1[1][1:]        
             # this is the value
-            value = op1[2][1:-5]
-            
+            value = op1[2][1:-5]            
             op = operation(operation0, key, value)
             # get client
             client = op1[2][-2:]
@@ -316,7 +315,12 @@ def paxos():
             # send decide
             print("Sending message to client to specific client: ", client)
             threading.Thread(target = send_to_client, args = (client_connections[client], "ack")).start()
-            q.get()
+            # operation(put, cindy, {dfdsk}adsfdasfasdfasfdsafasfdsfs)
+
+            operate = "Operation(" + operation0 + ", " + key + ", " + value + ")"
+
+            if (operate == q.queue[0][:-4]):
+                q.get()
            
             # restart paxos
             promises = []
@@ -333,7 +337,7 @@ def leader_election():
         promises = []
         ballotNum = (ballotNum[0] + 1, process_id, len(blockchain))
         # pepare, ballonum, processid, depth
-        prepareMessage = "prepare" + "," + str(ballotNum[0]) + "," + str(ballotNum[1]) + "," + str(ballotNum[2])
+        prepareMessage = "prepare&" + str(ballotNum[0]) + "&" + str(ballotNum[1]) + "&" + str(ballotNum[2])
         print("Sending Prepare: ", prepareMessage)
         for conn in PORTS:
             if conn != process_id:
@@ -343,7 +347,7 @@ def leader_election():
     time.sleep(7) # wait for promises
     with lock:
         if len(promises) >= 2:
-            leaderMessage = "notifying," + process_id
+            leaderMessage = "notifying&" + process_id
             leader = process_id
             for conn in PORTS:
                 if conn != process_id:
@@ -366,19 +370,18 @@ def phase1b(msg):
     if(len(blockchain) > currDepth):
         # proposer has shorter depth than blockchain
         for i in range(currDepth, len(blockchain)):
-            
             b = blockchain[i]
             b0 = b[0]
-            operation0 = b0.op + "/" + b0.key + "/" + b0.value
+            operation0 = b0.op + "," + b0.key + "," + b0.value
             addBlock = operation0 + '||' + b[1] + '||' + b[2]
-            message = "updateP," + addBlock + "," + str(i)
+            message = "updateP&" + addBlock + "&" + str(i)
             # updateP,acceptVal, depth
             print("Sending updateP Message")
             threading.Thread(target=send, args =((IP, PORTS[msg[2]]), message)).start()
         return
     elif(len(blockchain) < currDepth):
         # proposer has longer depth than blockchain, non-proposers need to update blockchain
-        message = "updateB," + str(len(blockchain)) + "," + process_id
+        message = "updateB&" + str(len(blockchain)) + "&" + process_id
         print("Sending updateB Message")
         threading.Thread(target=send, args =((IP,PORTS[msg[2]]), message)).start()
         return
@@ -390,7 +393,7 @@ def phase1b(msg):
     if (ballotNum <= receivedBal):
         ballotNum = (int(msg[1]), msg[2], int(msg[3]))
         # promise, ballotNum, processid, depth, acceptNum, processid, depth, acceptVal
-        promiseMessage = "promise" + "," + str(ballotNum[0]) + "," +  ballotNum[1] + "," + str(ballotNum[2]) + "," + str(acceptNum[0]) + "," + str(acceptNum[1]) + "," + str(acceptVal)
+        promiseMessage = "promise&" + str(ballotNum[0]) + "&" +  ballotNum[1] + "&" + str(ballotNum[2]) + "&" + str(acceptNum[0]) + "&" + str(acceptNum[1]) + "&" + str(acceptVal)
         print("Sending Promise: ", promiseMessage)
         # send promise to leader
         threading.Thread(target=send, args=((IP, PORTS[msg[2]]), promiseMessage)).start()
@@ -407,7 +410,7 @@ def phase2b(msg):
     #print("length blockchain: ", len(blockchain))
     if (currDepth > len(blockchain)):
         # proposer has longer depth than blockchain, update blockchain
-        message = "updateB," + str(len(blockchain)) + "," + process_id
+        message = "updateB&" + str(len(blockchain)) + "&" + process_id
         print("Sending updateB Message")
         threading.Thread(target=send, args=((IP, PORTS[msg[2]]), message)).start()
         return
@@ -420,7 +423,7 @@ def phase2b(msg):
     if(ballotNum <= receivedBal):
         acceptVal = msg[4]
         acceptNum = receivedBal
-        acceptedMessage = "accepted," + str(acceptNum[0]) + "," + acceptNum[1] + "," + str(acceptNum[2]) + "," + str(acceptVal)
+        acceptedMessage = "accepted&" + str(acceptNum[0]) + "&" + acceptNum[1] + "&" + str(acceptNum[2]) + "&" + str(acceptVal)
         # sending accepted message
         print("Sending Accepted: ", acceptedMessage)
         threading.Thread(target=send, args=((IP, PORTS[msg[2]]), acceptedMessage)).start()
@@ -446,7 +449,7 @@ def updateProposerBlockchain(msg):
     # acceptVal = 'put/bill_netid/{“phone_number”: “164-230-9012”}||5||e3b0c44298fc
     acceptV = msg[1].split('||')
     #print("acceptVal: ", acceptV)
-    op1 = acceptV[0].split("/")
+    op1 = acceptV[0].split(",")
     #print("op: ", op1)
     operation0 = op1[0]
     key = op1[1]
@@ -465,7 +468,7 @@ def updateProposerBlockchain(msg):
             for n in temp_depth:
                 if (int(n[2]) == len(blockchain)):
                     acceptV = n[1].split('||')
-                    op1 = acceptV[0].split("/")
+                    op1 = acceptV[0].split(",")
                     operation0 = op1[0]
                     key = op1[1]
                     value = op1[2]
@@ -481,19 +484,19 @@ def updateProposerBlockchain(msg):
 # proposer has a longer depth
 def updateBlockchain(msg):
     global blockchain
-    print("UPDATE BLOCKCHAIN")
     # updateB, depth, process_id
     currDepth = int(msg[1])
     if(len(blockchain) <= currDepth):
         return
 
+    print("UPDATE BLOCKCHAIN")
     # add blocks to the other blocks
     for i in range(currDepth, len(blockchain)):
         b = blockchain[i]
         b0 = b[0]
-        operation0 = b0.op + "/" + b0.key + "/" + b0.value
+        operation0 = b0.op + "," + b0.key + "," + b0.value
         addBlock = operation0 + '||' + b[1] + '||' + b[2]
-        message = "updateP," + addBlock + "," + str(i)
+        message = "updateP&" + addBlock + "&" + str(i)
         print("Sending updateP Message")
         # updateP,acceptVal, depth
         threading.Thread(target=send, args =((IP, PORTS[msg[2]]), message)).start()
@@ -504,9 +507,7 @@ def insertBlock(msg):
     #print("LEADER: ", leader)
     print("Received DECIDE from leader, adding block to blockchain")
     # update local acceptVal
-    print(msg)
-    acceptVal = msg[1] + "," + msg[2] + "," + msg[3]
-    
+    acceptVal = msg[1]
     # parse through operation 
     acceptVal = acceptVal.split('||')
     op = acceptVal[0].split("(")
@@ -533,9 +534,6 @@ def exit():
     f = 'outfile' + process_id
     with open(f, 'wb') as out:
        pickle.dump(blockchain, out)
-
-    # a = jsonpickle.encode(blockchain) # create blockchain obj into json
-    # with open(f) as json_file:
         
     sys.stdout.flush()
     listen_socket.close()
@@ -568,6 +566,14 @@ if __name__ == "__main__":
     threading.Thread(target=handle_requests_from_server).start()
     # thread to start paxos
     threading.Thread(target=paxos).start()
+
+    # recovery algorithm
+    for p in PORTS:
+        if p != process_id:
+            addr = (IP, PORTS[p])
+            msg = 'request&' + str(len(blockchain)) + '&' + process_id
+            threading.Thread(target = send, args = (addr, msg)).start()
+            time.sleep(0.1)
 
     while True:
         command = input()
