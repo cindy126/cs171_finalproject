@@ -245,16 +245,18 @@ def paxos():
                     operation1 = b.op + "," + b.key + "," + b.value
                     # previousHash = operation nonce hash
                     previousHash = operation1 + "||" + blockchain[-1][1] + "||" + blockchain[-1][2]
+
                 previousHash = sha256(previousHash.encode("utf-8")).hexdigest()
 
                 while True:
                     nonce = str(random.randint(0,50))
                     acceptVal = str(q.queue[0]) + "||" + nonce + "||" + previousHash
-                    hash = sha256(acceptVal.encode('utf-8')).hexdigest()
+                    
+                    hash = sha256(acceptVal.encode("utf-8")).hexdigest()
 
                     if "0" <= hash[-1] <= "2":
-                        print("Nonce: ", nonce)
-                        print("Hash value: ", hash)
+                        print("hash: ", hash)
+                        print("nonce: ", nonce)
                         print("acceptVal: ", acceptVal)
                         break
             else:
@@ -265,9 +267,9 @@ def paxos():
             # accept, ballotnum, processid, depth, acceptval
             acceptMessage = 'accept&' + str(ballotNum[0]) + '&' + ballotNum[1] + '&' + str(ballotNum[2]) + '&' + acceptVal
             print("Sending Accept: ", acceptMessage)
-            for conn in PORTS:
-                if conn != process_id:
-                    threading.Thread(target = send, args = ((IP, PORTS[conn]), acceptMessage)).start()
+            for p in PORTS:
+                if p != process_id:
+                    threading.Thread(target = send, args = ((IP, PORTS[p]), acceptMessage)).start()
                     time.sleep(0.1)
             #threading.Thread(target = send_to_all_servers, args = (acceptMessage,)).start()
 
@@ -284,9 +286,9 @@ def paxos():
             print("------decision------")
             print("acceptVal: ", acceptVal)
             decideMessage = 'decide&' + acceptVal + '&' + str(ballotNum[2])
-            for conn in PORTS:
-                if conn != process_id:
-                    threading.Thread(target = send, args = ((IP, PORTS[conn]), decideMessage)).start()
+            for p in PORTS:
+                if p != process_id:
+                    threading.Thread(target = send, args = ((IP, PORTS[p]), decideMessage)).start()
                     time.sleep(0.1)
             #threading.Thread(target = send_to_all_servers, args = (decideMessage,)).start()
             
@@ -323,8 +325,8 @@ def paxos():
                 q.get()
            
             # restart paxos
-            promises = []
             accepted = 0
+            promises = []
             ballotNum = (0, process_id, 0)
             acceptNum = (0, '', 0)
             acceptVal = None    
@@ -339,9 +341,9 @@ def leader_election():
         # pepare, ballonum, processid, depth
         prepareMessage = "prepare&" + str(ballotNum[0]) + "&" + str(ballotNum[1]) + "&" + str(ballotNum[2])
         print("Sending Prepare: ", prepareMessage)
-        for conn in PORTS:
-            if conn != process_id:
-                threading.Thread(target = send, args = ((IP, PORTS[conn]), prepareMessage)).start()
+        for p in PORTS:
+            if p != process_id:
+                threading.Thread(target = send, args = ((IP, PORTS[p]), prepareMessage)).start()
                 time.sleep(0.1)
         #threading.Thread(target = send_to_all_servers, args = (prepareMessage,)).start()
     time.sleep(7) # wait for promises
@@ -349,9 +351,9 @@ def leader_election():
         if len(promises) >= 2:
             leaderMessage = "notifying&" + process_id
             leader = process_id
-            for conn in PORTS:
-                if conn != process_id:
-                    threading.Thread(target = send, args = ((IP, PORTS[conn]), leaderMessage)).start()
+            for p in PORTS:
+                if p != process_id:
+                    threading.Thread(target = send, args = ((IP, PORTS[p]), leaderMessage)).start()
                     time.sleep(0.1)
             #threading.Thread(target = send_to_all_servers, args = (leaderMessage,)).start()
             #threading.Thread(target = send_to_all_clients, args = (leaderMessage,)).start()
