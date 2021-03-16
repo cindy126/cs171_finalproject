@@ -187,13 +187,15 @@ while True:
                 print('could not send to server', pid)
                 continue
 
-        time.sleep(20)
+        time.sleep(25)
         #print("received: ", str(received))
         if (received == False):
             while True:
                 pid = str(random.randint(1,5))
                 try:
                     print("Sending leader message to: Server", pid)
+                    #server_connection[pid].send(b"leader")
+                    # this is the hardcode version (leader is always 2)
                     server_connection[pid].send(b"leader")
                     break
                 except Exception as e:
